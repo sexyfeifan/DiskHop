@@ -20,6 +20,16 @@ declare global {
       openDownloads: () => Promise<void>
       fileExists: (path: string) => Promise<boolean>
       getVersion: () => Promise<string>
+      checkForUpdates: () => Promise<{
+        hasUpdate: boolean
+        currentVersion?: string
+        latestVersion?: string
+        releaseUrl?: string
+        releaseNotes?: string
+        publishedAt?: string
+        assets?: { name: string; url: string; size: number }[]
+        error?: string
+      }>
       listVolumes: () => Promise<{ name: string; path: string; totalBytes: number; freeBytes: number; format: string }[]>
       ejectVolume: (mountPoint: string) => Promise<{ success: boolean; error?: string }>
       listDir: (dirPath: string) => Promise<{ name: string; path: string }[]>

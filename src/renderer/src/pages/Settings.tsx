@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, FolderOpen, Save, ShieldCheck, Info } from 'lucide-react'
+import { Plus, Trash2, FolderOpen, Save, ShieldCheck, Info, Download, Loader2, CheckCircle, ExternalLink } from 'lucide-react'
 import { useBackupStore } from '../store/backupStore'
 import type { Settings, Destination } from '../../../../main/types'
 import type { Lang } from '../i18n'
@@ -11,6 +11,14 @@ export function SettingsPage() {
   const [webhookStatus, setWebhookStatus] = useState<'idle' | 'ok' | 'fail'>('idle')
   const [appVersion, setAppVersion] = useState('…')
   const destCounterRef = useRef(0)
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'latest' | 'error'>('idle')
+  const [updateInfo, setUpdateInfo] = useState<{
+    latestVersion?: string
+    releaseUrl?: string
+    releaseNotes?: string
+    publishedAt?: string
+    assets?: { name: string; url: string; size: number }[]
+  }>({})
 
   useEffect(() => { setLocal(settings) }, [settings])
   useEffect(() => { window.api.getVersion().then(v => setAppVersion(`v${v}`)) }, [])
@@ -57,6 +65,29 @@ export function SettingsPage() {
     setSettings(local)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function checkForUpdates() {
+    setUpdateStatus('checking')
+    try {
+      const result = await window.api.checkForUpdates()
+      if (result.hasUpdate) {
+        setUpdateStatus('available')
+        setUpdateInfo({
+          latestVersion: result.latestVersion,
+          releaseUrl: result.releaseUrl,
+          releaseNotes: result.releaseNotes,
+          publishedAt: result.publishedAt,
+          assets: result.assets,
+        })
+      } else {
+        setUpdateStatus('latest')
+        setTimeout(() => setUpdateStatus('idle'), 3000)
+      }
+    } catch {
+      setUpdateStatus('error')
+      setTimeout(() => setUpdateStatus('idle'), 3000)
+    }
   }
 
   const labelCls = 'text-xs text-gray-400 uppercase tracking-wider'
@@ -187,6 +218,88 @@ export function SettingsPage() {
         <Save size={14} />
         {saved ? t('settingsSaved') : t('settingsSave')}
       </button>
+
+      {/* Update */}
+      <div className="space-y-2">
+        <label className={labelCls}>{t('updateCheck')}</label>
+        <div className="bg-bg-card border border-border rounded-lg px-4 py-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-300">{t('settingsAboutVersion')}</span>
+              <span className="text-xs text-gray-500 font-mono">{appVersion}</span>
+            </div>
+            <button
+              onClick={checkForUpdates}
+              disabled={updateStatus === 'checking'}
+              className="no-drag flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-bg-hover border border-border text-gray-300 hover:text-gray-100 hover:border-gray-500 disabled:opacity-50"
+            >
+              {updateStatus === 'checking' ? (
+                <><Loader2 size={12} className="animate-spin" /> {t('updateChecking')}</>
+              ) : (
+                <><Download size={12} /> {t('updateCheck')}</>
+              )}
+            </button>
+          </div>
+
+          {updateStatus === 'latest' && (
+            <div className="flex items-center gap-2 text-xs text-green-400">
+              <CheckCircle size={14} /> {t('updateLatest')}
+            </div>
+          )}
+
+          {updateStatus === 'error' && (
+            <div className="text-xs text-red-400">{t('updateError')}</div>
+          )}
+
+          {updateStatus === 'available' && updateInfo.latestVersion && (
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs px-2 py-0.5 rounded bg-accent-blue/20 text-accent-blue border border-accent-blue/30 font-medium">
+                  {t('updateAvailable')}
+                </span>
+                <span className="text-xs text-gray-400 font-mono">v{updateInfo.latestVersion}</span>
+              </div>
+
+              {updateInfo.publishedAt && (
+                <div className="text-[11px] text-gray-500">
+                  {t('updatePublishedAt')}: {new Date(updateInfo.publishedAt).toLocaleDateString()}
+                </div>
+              )}
+
+              {updateInfo.releaseNotes && (
+                <details className="group">
+                  <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300 transition-colors">
+                    {t('updateReleaseNotes')}
+                  </summary>
+                  <div className="mt-1.5 text-xs text-gray-400 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto bg-gray-900/50 rounded-lg p-2.5">
+                    {updateInfo.releaseNotes}
+                  </div>
+                </details>
+              )}
+
+              <div className="flex flex-wrap gap-1.5">
+                {updateInfo.assets?.filter(a => a.name.endsWith('.dmg')).map(asset => (
+                  <button
+                    key={asset.name}
+                    onClick={() => window.api.openExternal(asset.url)}
+                    className="no-drag flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-accent-blue hover:bg-blue-500 text-white transition-colors"
+                  >
+                    <Download size={12} /> {asset.name.replace('.dmg', '').split('-').pop()}
+                  </button>
+                ))}
+                {updateInfo.releaseUrl && (
+                  <button
+                    onClick={() => window.api.openExternal(updateInfo.releaseUrl!)}
+                    className="no-drag flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:text-gray-200 border border-border hover:border-gray-500 transition-colors"
+                  >
+                    <ExternalLink size={12} /> GitHub
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* About */}
       <div className="space-y-2">

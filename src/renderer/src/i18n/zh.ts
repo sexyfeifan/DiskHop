@@ -114,6 +114,16 @@ export const zh = {
   settingsAboutAuthor: '作者',
   settingsAboutContact: '联系',
 
+  // Update
+  updateCheck: '检查更新',
+  updateChecking: '检查中…',
+  updateAvailable: '发现新版本',
+  updateLatest: '已是最新版本',
+  updateError: '检查更新失败',
+  updateDownload: '前往下载',
+  updateReleaseNotes: '更新日志',
+  updatePublishedAt: '发布时间',
+
   // Report
   reportTitle: 'DiskHop 拷贝报告',
   reportProject: '项目名称',

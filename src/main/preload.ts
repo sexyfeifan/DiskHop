@@ -60,6 +60,17 @@ contextBridge.exposeInMainWorld('api', {
   getVersion: (): Promise<string> =>
     ipcRenderer.invoke('app:getVersion'),
 
+  checkForUpdates: (): Promise<{
+    hasUpdate: boolean
+    currentVersion?: string
+    latestVersion?: string
+    releaseUrl?: string
+    releaseNotes?: string
+    publishedAt?: string
+    assets?: { name: string; url: string; size: number }[]
+    error?: string
+  }> => ipcRenderer.invoke('app:checkForUpdates'),
+
   listVolumes: (): Promise<{ name: string; path: string; totalBytes: number; freeBytes: number; format: string }[]> =>
     ipcRenderer.invoke('shell:listVolumes'),
 

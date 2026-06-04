@@ -114,6 +114,16 @@ export const en = {
   settingsAboutAuthor: 'Author',
   settingsAboutContact: 'Contact',
 
+  // Update
+  updateCheck: 'Check for Updates',
+  updateChecking: 'Checking…',
+  updateAvailable: 'Update Available',
+  updateLatest: 'You are up to date',
+  updateError: 'Failed to check updates',
+  updateDownload: 'Download',
+  updateReleaseNotes: 'Release Notes',
+  updatePublishedAt: 'Published',
+
   // Report
   reportTitle: 'DiskHop — Transfer Report',
   reportProject: 'Project',
