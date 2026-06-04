@@ -1,0 +1,12 @@
+node_modules/
+out/
+release/
+dmg/
+legacy/
+Mimo_DiskHop/
+build/
+dist/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
