@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
-import { join } from 'path'
+import { join, basename } from 'path'
 import { readFile, writeFile, mkdir, readdir, rename as fsRename } from 'fs/promises'
 import { existsSync } from 'fs'
 import { execFile } from 'child_process'
@@ -289,14 +289,13 @@ ipcMain.handle('backup:start', async (_, config: TaskConfig) => {
   const engine = new BackupEngine(config, destinations, join(DATA_DIR, 'reports'))
   activeEngines.set(config.id, engine)
 
-  engine.on('progress', (payload) => {
-    mainWindow?.webContents.send('backup:progress', payload)
-    // 【Fix 5】每 30 秒将当前进度快照写入磁盘
-    lastProgressPayload = payload
-  })
-
   // 【Fix 5】每 30 秒持久化进度快照
   let lastProgressPayload: any = null
+
+  engine.on('progress', (payload) => {
+    mainWindow?.webContents.send('backup:progress', payload)
+    lastProgressPayload = payload
+  })
   const progressTimer = setInterval(() => {
     if (lastProgressPayload) {
       writeProgressSnapshot({

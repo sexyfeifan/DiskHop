@@ -156,7 +156,7 @@ export class BackupEngine extends EventEmitter {
 
     // 将目的地级别的失败信息附加到记录中
     if (destFailures.size > 0) {
-      record.errorMessage = '部分目的地失败: ' + [...destFailures.entries()].map(([i, msg]) => `[${this.destinations[i].name}] ${msg}`).join('; ')
+      record.errorMessage = '部分目的地失败: ' + [...destFailures.entries()].map(([i, { msg }]) => `[${this.destinations[i].name}] ${msg}`).join('; ')
     }
 
     this.emit('progress', {

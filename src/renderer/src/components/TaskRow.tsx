@@ -21,6 +21,7 @@ export function TaskRow({
   const isSuccess = record.status === 'success'
   const isFailed = record.status === 'failed'
   const isCancelled = record.status === 'cancelled'
+  const isPartial = record.status === 'partial'
 
   const bannerBg = isSuccess ? 'bg-green-600/20 border-green-600/30' : isFailed ? 'bg-red-600/20 border-red-600/30' : 'bg-amber-600/20 border-amber-600/30'
   const bannerText = isSuccess ? 'text-green-400' : isFailed ? 'text-red-400' : 'text-amber-400'
@@ -36,6 +37,8 @@ export function TaskRow({
     }
   } else if (isFailed) {
     bannerMsg = t('historyBannerFailed')
+  } else if (isPartial) {
+    bannerMsg = t('historyBannerPartial') || '备份被中断'
   } else {
     bannerMsg = t('historyBannerCancelled')
   }
@@ -61,6 +64,11 @@ export function TaskRow({
           {isCancelled && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-600/20 text-amber-400 border border-amber-600/30 font-medium">
               {t('statusCancelled')}
+            </span>
+          )}
+          {isPartial && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-600/20 text-amber-400 border border-amber-600/30 font-medium">
+              {t('statusPartial') || '中断'}
             </span>
           )}
           {record.verificationOk === true && (
