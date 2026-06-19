@@ -186,7 +186,7 @@ export function TaskRow({
               onClick={() => setShowLogs(!showLogs)}
               className="no-drag flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
             >
-              📋 {showLogs ? '隐藏日志' : '查看日志'}
+              📋 {showLogs ? t('taskHideLogs') : t('taskShowLogs')}
             </button>
           )}
           {record.reportPath && hasReport && (
@@ -204,14 +204,14 @@ export function TaskRow({
       {showLogs && record.logs && (
         <div className="mx-4 mb-3 bg-gray-900 border border-border-subtle rounded-lg px-3 py-2 max-h-48 overflow-y-auto">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] text-gray-500 uppercase tracking-wider">执行日志</span>
+            <span className="text-[10px] text-gray-500 uppercase tracking-wider">{t('taskExecLog')}</span>
             <button
               onClick={() => {
                 navigator.clipboard.writeText(record.logs!.join('\n'))
               }}
               className="no-drag text-[10px] text-gray-500 hover:text-gray-300 transition-colors"
             >
-              复制
+              {t('taskCopy')}
             </button>
           </div>
           {record.logs.map((line, i) => (

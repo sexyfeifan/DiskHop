@@ -3,7 +3,7 @@ import type { BackupRecord } from '../../../../main/types'
 import { formatBytes } from '../utils'
 
 // ─── Heatmap ─────────────────────────────────────────────────────────────────
-export function HeatMap({ history }: { history: BackupRecord[] }) {
+export function HeatMap({ history, t }: { history: BackupRecord[]; t: (k: string) => string }) {
   const [tooltip, setTooltip] = useState<{ x: number; y: number; header: string; rows: { name: string; bytes: number; status: string }[] } | null>(null)
   const [pageOffset, setPageOffset] = useState(0) // in weeks; 0 = current, positive = further back
   const containerRef = useRef<HTMLDivElement>(null)
@@ -60,13 +60,13 @@ export function HeatMap({ history }: { history: BackupRecord[] }) {
     const dateStr = `${year}/${month}/${day}`
 
     if (!data || data.count === 0) {
-      setTooltip({ x, y, header: `${dateStr}  无备份`, rows: [] })
+      setTooltip({ x, y, header: t('heatNoBackup').replace('{date}', dateStr), rows: [] })
     } else {
       const successRate = Math.round((data.success / data.count) * 100)
       setTooltip({
         x,
         y,
-        header: `${dateStr}  ${data.count} 次备份  成功率 ${successRate}%  共 ${formatBytes(data.bytes)}`,
+        header: t('heatBackupInfo').replace('{date}', dateStr).replace('{count}', String(data.count)).replace('{rate}', String(successRate)).replace('{size}', formatBytes(data.bytes)),
         rows: data.records,
       })
     }
@@ -100,7 +100,7 @@ export function HeatMap({ history }: { history: BackupRecord[] }) {
     if (firstReal) {
       const m = firstReal.date.getMonth()
       if (m !== lastMonth) {
-        monthLabels.push({ label: `${firstReal.date.getMonth() + 1}月`, col: wi })
+        monthLabels.push({ label: t('heatMonth').replace('{n}', String(firstReal.date.getMonth() + 1)), col: wi })
         lastMonth = m
       }
     }
@@ -117,7 +117,7 @@ export function HeatMap({ history }: { history: BackupRecord[] }) {
         <button
           onClick={() => { setPageOffset(o => o + 13); setTooltip(null) }}
           className="no-drag shrink-0 mr-1 text-gray-600 hover:text-gray-300 transition-colors text-[10px] leading-none px-1"
-          title="往前翻页"
+          title={t('heatPageBack')}
         >‹</button>
         {weeks.map((_, wi) => {
           const label = monthLabels.find(m => m.col === wi)
@@ -131,7 +131,7 @@ export function HeatMap({ history }: { history: BackupRecord[] }) {
           onClick={() => { setPageOffset(o => Math.max(0, o - 13)); setTooltip(null) }}
           className={`no-drag shrink-0 ml-1 transition-colors text-[10px] leading-none px-1 ${isCurrentPage ? 'text-gray-800 cursor-default' : 'text-gray-600 hover:text-gray-300'}`}
           disabled={isCurrentPage}
-          title="往后翻页"
+          title={t('heatPageForward')}
         >›</button>
       </div>
 

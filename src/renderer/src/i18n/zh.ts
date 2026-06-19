@@ -142,6 +142,43 @@ export const zh = {
   reportVerificationFailed: '失败（SHA-256 哈希不一致，存在数据风险）',
   reportDirectoryTree: '目录结构（含大小）',
   reportSavedTo: '报告保存路径',
+
+  // Source Card
+  sourceSelected: '已选',
+  sourceUsed: '已用',
+  sourceRemaining: '剩余',
+  sourceTotal: '共',
+  fx3RenameLabel: 'FX3 备份重命名',
+  fx3RenameTooltipTitle: 'FX3 备份重命名',
+  fx3RenameTooltipDesc: '备份前自动扫描数据源目录，将 Sony FX3 默认生成的 "Untitled" 文件夹，根据其内视频文件名前四位字符（镜头代码）重命名，方便素材归档整理。',
+  noDiskDetected: '未检测到外接磁盘或储存卡，请插入后刷新',
+  btnRefresh: '刷新',
+
+  // Destinations Card
+  destNoSubdirs: '无子目录',
+  destNavigate: '进入',
+  destSelect: '选择',
+  destCancel: '取消',
+  destSelectThisDir: '选择此目录',
+  destCustomPath: '自定义路径',
+  destReset: '✕ 重置',
+  destCreateFolders: '新增文件结构',
+
+  // Task Row
+  taskShowLogs: '查看日志',
+  taskHideLogs: '隐藏日志',
+  taskExecLog: '执行日志',
+  taskCopy: '复制',
+
+  // Heat Map
+  heatNoBackup: '{date}  无备份',
+  heatBackupInfo: '{date}  {count} 次备份  成功率 {rate}%  共 {size}',
+  heatMonth: '{n}月',
+  heatPageBack: '往前翻页',
+  heatPageForward: '往后翻页',
+
+  // Dashboard
+  btnToday: '今日',
 } as const
 
 export type TranslationKey = keyof typeof zh

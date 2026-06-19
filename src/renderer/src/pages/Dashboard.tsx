@@ -262,7 +262,7 @@ export function Dashboard() {
               onClick={setToday}
               className="no-drag ml-1 shrink-0 text-xs px-2 py-1.5 rounded-lg bg-bg-card border border-border text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors"
             >
-              今日
+              {t('btnToday')}
             </button>
           </div>
         </div>

@@ -59,7 +59,7 @@ export function History() {
   return (
     <div className="flex flex-col h-full">
       {/* Heatmap */}
-      <HeatMap history={history} />
+      <HeatMap history={history} t={t} />
 
       {/* Toolbar */}
       <div className="flex items-center justify-end px-6 py-2.5 border-b border-border-subtle">

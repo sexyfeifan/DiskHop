@@ -69,7 +69,7 @@ function SubdirBrowserModal({
         {/* Entries */}
         <div className="flex-1 overflow-y-auto max-h-72 divide-y divide-border-subtle">
           {entries.length === 0 ? (
-            <div className="px-4 py-6 text-center text-xs text-gray-500">无子目录</div>
+            <div className="px-4 py-6 text-center text-xs text-gray-500">{t('destNoSubdirs')}</div>
           ) : (
             entries.map(e => (
               <div key={e.path} className="flex items-center px-4 py-2.5 hover:bg-white/5 group">
@@ -78,7 +78,7 @@ function SubdirBrowserModal({
                 <button
                   onClick={() => navigateInto(e.path)}
                   className="no-drag opacity-0 group-hover:opacity-100 text-gray-500 hover:text-gray-300 transition-all mr-2"
-                  title="进入"
+                  title={t('destNavigate')}
                 >
                   <ChevronRight size={13} />
                 </button>
@@ -86,7 +86,7 @@ function SubdirBrowserModal({
                   onClick={() => onSelect(e.path)}
                   className="no-drag opacity-0 group-hover:opacity-100 text-xs text-accent-blue hover:text-blue-400 transition-all"
                 >
-                  选择
+                  {t('destSelect')}
                 </button>
               </div>
             ))
@@ -99,14 +99,14 @@ function SubdirBrowserModal({
             onClick={onCancel}
             className="no-drag flex-1 py-2.5 text-sm text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors"
           >
-            取消
+            {t('destCancel')}
           </button>
           <div className="w-px bg-border" />
           <button
             onClick={() => onSelect(currentPath)}
             className="no-drag flex-1 py-2.5 text-sm text-accent-blue hover:text-blue-400 hover:bg-blue-950/30 transition-colors font-medium"
           >
-            选择此目录
+            {t('destSelectThisDir')}
           </button>
         </div>
       </div>
@@ -172,11 +172,11 @@ export function DestinationsCard({
                       </div>
                       {override && (
                         <div className="flex items-center gap-1 mt-0.5">
-                          <span className="text-[9px] text-accent-blue">自定义路径</span>
+                          <span className="text-[9px] text-accent-blue">{t('destCustomPath')}</span>
                           <button
                             onClick={e => { e.preventDefault(); onResetOverride(dest.id) }}
                             className="no-drag text-[9px] text-gray-500 hover:text-red-400 transition-colors"
-                          >✕ 重置</button>
+                          >{t('destReset')}</button>
                         </div>
                       )}
                     </div>
@@ -195,7 +195,7 @@ export function DestinationsCard({
             onClick={onCreateFolderStructure}
             className="no-drag w-full flex items-center justify-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 border border-border hover:border-gray-500 rounded-lg py-1.5 transition-colors"
           >
-            <FolderPlus size={12} /> 新增文件结构
+            <FolderPlus size={12} /> {t('destCreateFolders')}
           </button>
           {mkdirStatus && (
             <p className="text-[10px] text-green-400 mt-1 text-center">{mkdirStatus}</p>

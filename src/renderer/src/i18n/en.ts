@@ -142,6 +142,43 @@ export const en = {
   reportVerificationFailed: 'FAILED (SHA-256 hash mismatch — data risk)',
   reportDirectoryTree: 'Directory Tree (with sizes)',
   reportSavedTo: 'Report saved to',
+
+  // Source Card
+  sourceSelected: 'Selected',
+  sourceUsed: 'Used',
+  sourceRemaining: 'Remaining',
+  sourceTotal: 'Total',
+  fx3RenameLabel: 'FX3 Backup Rename',
+  fx3RenameTooltipTitle: 'FX3 Backup Rename',
+  fx3RenameTooltipDesc: 'Automatically scans the source directory before backup and renames Sony FX3 default "Untitled" folders using the first four characters (lens code) from the video filename, making it easier to organize your footage.',
+  noDiskDetected: 'No external disk or storage card detected. Please insert one and refresh.',
+  btnRefresh: 'Refresh',
+
+  // Destinations Card
+  destNoSubdirs: 'No subdirectories',
+  destNavigate: 'Navigate',
+  destSelect: 'Select',
+  destCancel: 'Cancel',
+  destSelectThisDir: 'Select this directory',
+  destCustomPath: 'Custom path',
+  destReset: '✕ Reset',
+  destCreateFolders: 'Create folder structure',
+
+  // Task Row
+  taskShowLogs: 'Show logs',
+  taskHideLogs: 'Hide logs',
+  taskExecLog: 'Execution Log',
+  taskCopy: 'Copy',
+
+  // Heat Map
+  heatNoBackup: '{date}  No backups',
+  heatBackupInfo: '{date}  {count} backups  Success rate {rate}%  Total {size}',
+  heatMonth: '{n}',
+  heatPageBack: 'Go back',
+  heatPageForward: 'Go forward',
+
+  // Dashboard
+  btnToday: 'Today',
 } as const
 
 export type TranslationKey = keyof typeof en
