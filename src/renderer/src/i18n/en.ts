@@ -177,6 +177,11 @@ export const en = {
 
   // Dashboard
   btnToday: 'Today',
+
+  // Error Boundary
+  errorTitle: 'Something went wrong',
+  errorUnexpected: 'An unexpected error occurred',
+  errorRetry: 'Try Again',
 } as const
 
 export type TranslationKey = keyof typeof en

@@ -177,6 +177,11 @@ export const zh = {
 
   // Dashboard
   btnToday: '今日',
+
+  // Error Boundary
+  errorTitle: '出现错误',
+  errorUnexpected: '发生了意外错误',
+  errorRetry: '重试',
 } as const
 
 export type TranslationKey = keyof typeof zh
