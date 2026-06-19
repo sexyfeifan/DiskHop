@@ -26,6 +26,7 @@ interface BackupStore {
   t: (key: Parameters<ReturnType<typeof getT>>[0]) => string
 }
 
+/** Global Zustand store for DiskHop UI state (page, settings, history, progress). */
 export const useBackupStore = create<BackupStore>((set, get) => ({
   activePage: 'dashboard',
   setActivePage: (p) => set({ activePage: p }),

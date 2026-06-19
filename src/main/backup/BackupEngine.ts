@@ -11,6 +11,10 @@ const RSYNC_CANDIDATES = ['/opt/homebrew/bin/rsync', '/usr/local/bin/rsync', '/u
 const RSYNC = RSYNC_CANDIDATES.find(p => existsSync(p)) ?? '/usr/bin/rsync'
 const LOG_LINES = 5
 
+/**
+ * Core backup engine. Orchestrates scanning, rsync copy, SHA-256 verification,
+ * and report generation across one or more destinations.
+ */
 export class BackupEngine extends EventEmitter {
   private cancelled = false
   private rsyncProc: ReturnType<typeof spawn> | null = null
@@ -23,11 +27,16 @@ export class BackupEngine extends EventEmitter {
     super()
   }
 
+  /** Cancel the current backup, sending SIGTERM to any running rsync process. */
   cancel() {
     this.cancelled = true
     this.rsyncProc?.kill('SIGTERM')
   }
 
+  /**
+   * Execute the full backup workflow: scan, copy, verify, and generate report.
+   * @returns A BackupRecord summarising the outcome.
+   */
   async run(): Promise<BackupRecord> {
     const startedAt = new Date().toISOString()
     const taskId = this.config.id
@@ -338,8 +347,6 @@ export class BackupEngine extends EventEmitter {
     }
     return total
   }
-
-  // verifyBytes removed — verification now uses per-file comparison via verifyPerDest
 
   /**
    * 流式计算文件的 SHA-256 hash

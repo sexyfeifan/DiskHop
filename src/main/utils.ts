@@ -2,6 +2,7 @@
  * Shared utility functions for DiskHop main process.
  */
 
+/** Format a byte count into a human-readable string (B, KB, MB, GB). */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`
@@ -9,6 +10,7 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1024 ** 3).toFixed(2)} GB`
 }
 
+/** Compute a human-readable duration string from two ISO timestamps. */
 export function formatDuration(startedAt: string, finishedAt: string): string {
   const ms = new Date(finishedAt).getTime() - new Date(startedAt).getTime()
   const totalSec = Math.floor(ms / 1000)
@@ -20,6 +22,7 @@ export function formatDuration(startedAt: string, finishedAt: string): string {
   return `${s}s`
 }
 
+/** Format an ISO timestamp into a local `YYYY/M/D HH:MM:SS` string. */
 export function formatDateTime(iso: string): string {
   const d = new Date(iso)
   const y = d.getFullYear()
@@ -31,6 +34,7 @@ export function formatDateTime(iso: string): string {
   return `${y}/${mo}/${day} ${hh}:${mm}:${ss}`
 }
 
+/** Format a number with locale-appropriate thousand separators. */
 export function formatCount(n: number): string {
   return n.toLocaleString('en-US')
 }

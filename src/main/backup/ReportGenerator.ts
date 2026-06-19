@@ -44,6 +44,10 @@ async function buildWebhookTree(dir: string, indent = '  '): Promise<string[]> {
   return lines
 }
 
+/**
+ * Build a plain-text webhook notification summarising the backup result,
+ * including paths, verification status, and directory tree.
+ */
 export async function buildWebhookText(
   config: TaskConfig,
   destinations: Destination[],
@@ -63,8 +67,8 @@ export async function buildWebhookText(
 
   lines.push('📋 任务信息')
   lines.push(`  任务   ${config.projectName || config.name}`)
-  // 【Fix 7】修正：DiskHop 使用 rsync 传输 + 文件大小校验，不使用 MD5 hash
-  lines.push(`  校验   rsync + 文件大小校验`)
+  // DiskHop uses rsync for transfer + per-file SHA-256 hash verification
+  lines.push(`  校验   rsync + SHA-256 校验`)
   lines.push(`  开始   ${formatDateTime(result.startedAt)}`)
   lines.push(`  完成   ${formatDateTime(result.finishedAt)}`)
   lines.push(`  耗时   ${formatDuration(result.startedAt, result.finishedAt)}`)
@@ -177,9 +181,14 @@ async function buildDirectoryTree(
   return lines
 }
 
+/** Generates and saves backup transfer reports (.txt) to the reports directory and destinations. */
 export class ReportGenerator {
   constructor(private reportsDir: string) {}
 
+  /**
+   * Generate a transfer report, save it to the reports dir, copy it to
+   * each destination and the Downloads folder.
+   */
   async generate(
     config: TaskConfig,
     files: { abs: string; rel: string; size: number }[],
@@ -259,6 +268,7 @@ export class ReportGenerator {
     return reportPath
   }
 
+  /** Show a Save-As dialog and copy the report to the user-chosen path. */
   async saveAs(reportPath: string): Promise<string | undefined> {
     const { canceled, filePath } = await dialog.showSaveDialog({
       defaultPath: basename(reportPath),

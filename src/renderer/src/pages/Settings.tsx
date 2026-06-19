@@ -308,7 +308,7 @@ export function SettingsPage() {
           {([
             { label: t('settingsAboutVersion'), value: appVersion },
             { label: t('settingsAboutEngine'), value: 'Electron + React' },
-            { label: t('settingsAboutVerify'), value: 'rsync + byte count' },
+            { label: t('settingsAboutVerify'), value: 'rsync + SHA-256' },
             { label: t('settingsAboutAuthor'), value: '@我是性感的非凡' },
             { label: t('settingsAboutContact'), value: 'zhoufeifan@gmail.com' },
           ] as { label: string; value: string }[]).map(({ label, value }) => (

@@ -6,6 +6,7 @@ export type TranslationKey = keyof typeof zh
 
 const translations = { zh, en } as const
 
+/** Return a translation lookup function for the given language. */
 export function getT(lang: Lang) {
   return (key: TranslationKey): string => translations[lang][key] as string
 }

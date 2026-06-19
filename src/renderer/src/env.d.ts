@@ -36,6 +36,12 @@ declare global {
       mkdir: (dirPath: string) => Promise<{ success: boolean; error?: string }>
       testWebhook: (url: string) => Promise<{ ok: boolean; status: number }>
       fx3Scan: (sourcePaths: string[]) => Promise<{ srcPath: string; untitledPath: string; suggestedName: string; videoFile: string }[]>
+      /** Check for an interrupted backup snapshot (e.g. after app restart). */
+      checkInterrupted: () => Promise<object | null>
+      /** Clear the interrupted backup progress snapshot. */
+      clearInterrupted: () => Promise<void>
+      /** Run a dry-run preview of the backup (rsync --dry-run). */
+      dryRun: (config: TaskConfig) => Promise<{ success: boolean; results?: any[]; error?: string }>
     }
   }
 }

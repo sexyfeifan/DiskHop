@@ -7,6 +7,7 @@ const pageTitleKeys = {
   settings: 'navSettings',
 } as const
 
+/** Top header bar showing the current page title. */
 export function Header() {
   const { activePage, t } = useBackupStore()
   const key = pageTitleKeys[activePage as keyof typeof pageTitleKeys]
