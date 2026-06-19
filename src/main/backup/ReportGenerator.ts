@@ -63,7 +63,8 @@ export async function buildWebhookText(
 
   lines.push('📋 任务信息')
   lines.push(`  任务   ${config.projectName || config.name}`)
-  lines.push(`  哈希   MD5`)
+  // 【Fix 7】修正：DiskHop 使用 rsync 传输 + 文件大小校验，不使用 MD5 hash
+  lines.push(`  校验   rsync + 文件大小校验`)
   lines.push(`  开始   ${formatDateTime(result.startedAt)}`)
   lines.push(`  完成   ${formatDateTime(result.finishedAt)}`)
   lines.push(`  耗时   ${formatDuration(result.startedAt, result.finishedAt)}`)
@@ -117,7 +118,7 @@ export async function buildWebhookText(
   lines.push('')
 
   // ⚠️ 失败文件 — only shown when there are verification failures
-  const allFailedFiles: { rel: string; size: number }[] = []
+  const allFailedFiles: { rel: string; expectedHash: string; actualHash: string }[] = []
   for (const dv of result.destinationVerification ?? []) {
     for (const f of dv.failedFiles ?? []) {
       if (!allFailedFiles.some(x => x.rel === f.rel)) {
@@ -128,7 +129,7 @@ export async function buildWebhookText(
   if (allFailedFiles.length > 0) {
     lines.push('⚠️ 失败文件')
     for (const f of allFailedFiles) {
-      lines.push(`  ✗ ${f.rel}  (${formatBytes(f.size)})`)
+      lines.push(`  ✗ ${f.rel}  (期望: ${f.expectedHash.slice(0, 12)}… 实际: ${f.actualHash.slice(0, 12)}…)`)
     }
     lines.push('')
   }

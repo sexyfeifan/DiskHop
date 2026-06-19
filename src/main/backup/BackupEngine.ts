@@ -1,8 +1,9 @@
 import { EventEmitter } from 'events'
 import { stat, readdir } from 'fs/promises'
-import { existsSync } from 'fs'
+import { existsSync, createReadStream } from 'fs'
 import { join, relative, dirname, basename } from 'path'
 import { spawn } from 'child_process'
+import { createHash } from 'crypto'
 import type { TaskConfig, Destination, ProgressPayload, BackupRecord, DestinationVerification } from '../types'
 import { ReportGenerator } from './ReportGenerator'
 
@@ -51,6 +52,9 @@ export class BackupEngine extends EventEmitter {
 
     // Copy to each destination via rsync
     let bytesDoneOffset = 0
+    // 记录每个目的地的失败信息，不阻断后续目的地
+    // 【Fix 8】跟踪每个目的地的失败信息及是否为 SIGTERM 中断
+    const destFailures: Map<number, { msg: string; isSigterm: boolean }> = new Map()
     for (let di = 0; di < this.destinations.length; di++) {
       const dest = this.destinations[di]
       const destRoot = dest.path
@@ -72,17 +76,29 @@ export class BackupEngine extends EventEmitter {
           if (this.cancelled) {
             return this.emitCancelled(taskId, startedAt, files.length, totalBytesAllDests)
           }
-          const record = this.buildRecord(taskId, startedAt, 'failed', files.length, totalBytesAllDests)
-          record.errorMessage = err instanceof Error ? err.message : String(err)
+          // 【Fix 8】检测 rsync SIGTERM 中断，标记为 partial 而非 failed
+          const errMsg = err instanceof Error ? err.message : String(err)
+          const isSigterm = errMsg.includes('rsync interrupted (SIGTERM)')
+          destFailures.set(di, { msg: errMsg, isSigterm })
           this.emit('progress', {
             taskId, phase: 'error',
-            filesTotal: files.length, filesDone: 0, bytesTotal: totalBytesAllDests, bytesDone: 0,
-            currentFile: '', error: record.errorMessage
+            filesTotal: files.length, filesDone: 0, bytesTotal: totalBytesAllDests, bytesDone: bytesDoneOffset,
+            currentFile: '', error: `[目的地 ${dest.name}] ${errMsg}`, destIndex: di
           } satisfies ProgressPayload)
-          return record
         }
       }
       bytesDoneOffset += bytesTotal
+    }
+
+    // 如果所有目的地都失败了，直接返回失败记录
+    if (destFailures.size === this.destinations.length) {
+      // 【Fix 8】如果所有失败都是 SIGTERM 中断，标记为 partial 状态
+      const allSigterm = [...destFailures.values()].every(f => f.isSigterm)
+      const status = allSigterm ? 'partial' as const : 'failed' as const
+      const record = this.buildRecord(taskId, startedAt, status, files.length, totalBytesAllDests)
+      record.errorMessage = (allSigterm ? '备份被中断: ' : '所有目的地均失败: ')
+        + [...destFailures.values()].map(f => f.msg).join('; ')
+      return record
     }
 
     if (this.cancelled) {
@@ -125,7 +141,14 @@ export class BackupEngine extends EventEmitter {
       )
     }
 
-    const record = this.buildRecord(taskId, startedAt, 'success', files.length, totalBytesAllDests, reportPath, this.config.verify ? verificationOk : undefined, this.config.verify ? sourceBytes : undefined, this.config.verify ? destBytes : undefined, this.config.verify ? destinationVerification : undefined)
+    // 最终状态：有部分目的地失败时标记为 failed，但附带各目的地独立结果
+    const overallStatus = destFailures.size > 0 ? 'failed' : 'success'
+    const record = this.buildRecord(taskId, startedAt, overallStatus, files.length, totalBytesAllDests, reportPath, this.config.verify ? verificationOk : undefined, this.config.verify ? sourceBytes : undefined, this.config.verify ? destBytes : undefined, this.config.verify ? destinationVerification : undefined)
+
+    // 将目的地级别的失败信息附加到记录中
+    if (destFailures.size > 0) {
+      record.errorMessage = '部分目的地失败: ' + [...destFailures.entries()].map(([i, msg]) => `[${this.destinations[i].name}] ${msg}`).join('; ')
+    }
 
     this.emit('progress', {
       taskId, phase: 'done',
@@ -143,8 +166,9 @@ export class BackupEngine extends EventEmitter {
     filesTotal: number, bytesTotal: number, destIndex: number, bytesDoneOffset: number
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      // rsync -a --progress: archive mode (preserves metadata), verbose progress
-      const args = ['-a', '--progress', '--', `${src}/`, `${dest}/`]
+      // rsync -a --progress --partial: archive mode, verbose progress, 断点续传
+      // --partial 保留中断的不完整文件，--partial-dir 指定临时目录
+      const args = ['-a', '--progress', '--partial', '--partial-dir=.diskhop-partial', '--', `${src}/`, `${dest}/`]
       const proc = spawn(RSYNC, args)
       this.rsyncProc = proc
 
@@ -245,8 +269,15 @@ export class BackupEngine extends EventEmitter {
           parseLine(partial)
         }
         this.rsyncProc = null
-        if (this.cancelled || code === 20) {
+        // 【Fix 8】rsync 被 SIGTERM 杀掉时（code=20），不应静默 resolve
+        // code=20 表示 rsync 收到 SIGTERM 信号被中断
+        if (this.cancelled) {
           resolve()
+          return
+        }
+        if (code === 20) {
+          // 标记为中断状态，携带已传输文件数信息，让调用方知道这是部分完成
+          reject(new Error(`rsync interrupted (SIGTERM): ${filesDone} files transferred before termination`))
           return
         }
         if (code !== 0) {
@@ -310,27 +341,81 @@ export class BackupEngine extends EventEmitter {
 
   // verifyBytes removed — verification now uses per-file comparison via verifyPerDest
 
+  /**
+   * 流式计算文件的 SHA-256 hash
+   * 使用 createReadStream 流式读取，不会一次性将文件读入内存
+   */
+  private fileHash(filePath: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const hash = createHash('sha256')
+      const stream = createReadStream(filePath)
+      stream.on('data', (chunk) => hash.update(chunk))
+      stream.on('end', () => resolve(hash.digest('hex')))
+      stream.on('error', reject)
+    })
+  }
+
+  /**
+   * 对每个目的地进行逐文件 SHA-256 hash 校验
+   * - 使用流式 SHA-256 替代文件大小比对
+   * - 修复路径拼接：rsync srcPath/ -> dest.path/srcName/ 目录结构
+   * - 发送校验进度回调
+   */
   private async verifyPerDest(sourceBytes: number): Promise<DestinationVerification[]> {
     const results: DestinationVerification[] = []
-    for (const dest of this.destinations) {
-      let actualBytes = 0
-      const failedFiles: { rel: string; size: number }[] = []
 
-      for (const srcPath of this.config.sourcePaths) {
-        const srcName = basename(srcPath)
+    // 预先扫描所有源文件，避免重复扫描
+    const allSrcFiles: { srcPath: string; srcName: string; files: { abs: string; rel: string; size: number }[] }[] = []
+    for (const srcPath of this.config.sourcePaths) {
+      const srcFiles: { abs: string; rel: string; size: number }[] = []
+      await this.scan(srcPath, srcPath, srcFiles)
+      allSrcFiles.push({ srcPath, srcName: basename(srcPath), files: srcFiles })
+    }
+    // 校验总文件数 = 源文件数 × 目的地数
+    const totalVerifyFiles = allSrcFiles.reduce((s, e) => s + e.files.length, 0) * this.destinations.length
+    let verifyFilesDone = 0
+
+    for (let di = 0; di < this.destinations.length; di++) {
+      const dest = this.destinations[di]
+      let actualBytes = 0
+      // changed: failedFiles now stores hash info instead of just size
+      const failedFiles: { rel: string; expectedHash: string; actualHash: string }[] = []
+
+      for (const { srcName, files: srcFiles } of allSrcFiles) {
         actualBytes += await this.sumDir(join(dest.path, srcName))
 
-        const srcFiles: { abs: string; rel: string; size: number }[] = []
-        await this.scan(srcPath, srcPath, srcFiles)
-
         for (const f of srcFiles) {
-          const destFilePath = join(dest.path, f.rel)
+          // 修复路径拼接：rsync 使用 srcPath/ -> destDir/ 的映射
+          // rsync 命令是 `${srcPath}/` -> `${dest.path}/${srcName}/`
+          // 因此目标文件路径应为 dest.path/srcName/相对路径
+          const destFilePath = join(dest.path, srcName, f.rel)
+
+          if (this.cancelled) break
+
           try {
-            const s = await stat(destFilePath)
-            if (s.size !== f.size) failedFiles.push({ rel: f.rel, size: f.size })
+            // 使用 SHA-256 hash 校验替代文件大小比对，确保数据完整性
+            const [srcHash, destHash] = await Promise.all([
+              this.fileHash(f.abs),
+              this.fileHash(destFilePath)
+            ])
+            if (srcHash !== destHash) {
+              failedFiles.push({ rel: f.rel, expectedHash: srcHash, actualHash: destHash })
+            }
           } catch {
-            failedFiles.push({ rel: f.rel, size: f.size })
+            // 文件不存在或无法读取，记录错误
+            let srcHash = ''
+            try { srcHash = await this.fileHash(f.abs) } catch { /* 源文件也无法读取则留空 */ }
+            failedFiles.push({ rel: f.rel, expectedHash: srcHash, actualHash: '(文件不存在或无法读取)' })
           }
+
+          verifyFilesDone++
+          // 发送校验进度回调（当前只有拷贝进度，没有校验进度）
+          this.emit('progress', {
+            taskId: this.config.id, phase: 'verifying',
+            filesTotal: totalVerifyFiles, filesDone: verifyFilesDone,
+            bytesTotal: sourceBytes * this.destinations.length, bytesDone: 0,
+            currentFile: f.rel, destIndex: di
+          } satisfies ProgressPayload)
         }
       }
 
@@ -357,7 +442,7 @@ export class BackupEngine extends EventEmitter {
 
   private buildRecord(
     taskId: string, startedAt: string,
-    status: 'success' | 'failed' | 'cancelled',
+    status: 'success' | 'failed' | 'cancelled' | 'partial',
     filesTotal: number, bytesTotal: number,
     reportPath?: string,
     verificationOk?: boolean,

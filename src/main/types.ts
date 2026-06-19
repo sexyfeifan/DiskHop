@@ -52,7 +52,7 @@ export interface DestinationVerification {
   path: string
   ok: boolean
   actualBytes: number
-  failedFiles?: { rel: string; size: number }[]
+  failedFiles?: { rel: string; expectedHash: string; actualHash: string }[]
 }
 
 export interface BackupRecord {
@@ -63,7 +63,8 @@ export interface BackupRecord {
   finishedAt: string
   filesTotal: number
   bytesTotal: number
-  status: 'success' | 'failed' | 'cancelled'
+  // 【Fix 8】新增 'partial' 状态：rsync 被 SIGTERM 中断时部分完成
+  status: 'success' | 'failed' | 'cancelled' | 'partial'
   verificationOk?: boolean
   sourceBytes?: number
   destBytes?: number

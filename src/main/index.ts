@@ -51,6 +51,8 @@ const isDev = !app.isPackaged
 const DATA_DIR = join(app.getPath('home'), '.diskhop')
 const SETTINGS_FILE = join(DATA_DIR, 'settings.json')
 const HISTORY_FILE = join(DATA_DIR, 'history.json')
+// 【Fix 5】进度持久化：进度快照文件路径
+const PROGRESS_FILE = join(DATA_DIR, 'progress.json')
 const GITHUB_REPO = 'sexyfeifan/DiskHop'
 
 let mainWindow: BrowserWindow | null = null
@@ -93,6 +95,28 @@ async function saveHistory(records: BackupRecord[]) {
   await ensureDataDir()
   await writeFile(HISTORY_FILE + '.tmp', JSON.stringify(records, null, 2), 'utf-8')
   await fsRename(HISTORY_FILE + '.tmp', HISTORY_FILE)
+}
+
+// 【Fix 5】进度持久化：写入当前进度快照
+async function writeProgressSnapshot(snapshot: object | null) {
+  await ensureDataDir()
+  if (snapshot === null) {
+    // 任务完成/取消时清除快照
+    try { await writeFile(PROGRESS_FILE, 'null', 'utf-8') } catch { /* ignore */ }
+  } else {
+    await writeFile(PROGRESS_FILE, JSON.stringify(snapshot, null, 2), 'utf-8')
+  }
+}
+
+// 【Fix 5】进度持久化：读取未完成任务的进度快照
+async function loadProgressSnapshot(): Promise<object | null> {
+  try {
+    const raw = await readFile(PROGRESS_FILE, 'utf-8')
+    const data = JSON.parse(raw)
+    return data ?? null
+  } catch {
+    return null
+  }
 }
 
 async function appendToHistory(record: BackupRecord) {
@@ -241,6 +265,16 @@ ipcMain.handle('dialog:pickFolders', async () => {
 })
 
 // IPC: Backup
+// 【Fix 5】检查是否有未完成的任务（应用重启后）
+ipcMain.handle('backup:checkInterrupted', async () => {
+  return loadProgressSnapshot()
+})
+
+// 【Fix 5】清除未完成任务的进度快照（用户选择不继续时）
+ipcMain.handle('backup:clearInterrupted', async () => {
+  await writeProgressSnapshot(null)
+})
+
 ipcMain.handle('backup:start', async (_, config: TaskConfig) => {
   if (!mainWindow) return { success: false, error: 'No window' }
 
@@ -257,7 +291,22 @@ ipcMain.handle('backup:start', async (_, config: TaskConfig) => {
 
   engine.on('progress', (payload) => {
     mainWindow?.webContents.send('backup:progress', payload)
+    // 【Fix 5】每 30 秒将当前进度快照写入磁盘
+    lastProgressPayload = payload
   })
+
+  // 【Fix 5】每 30 秒持久化进度快照
+  let lastProgressPayload: any = null
+  const progressTimer = setInterval(() => {
+    if (lastProgressPayload) {
+      writeProgressSnapshot({
+        taskId: config.id,
+        config,
+        progress: lastProgressPayload,
+        timestamp: new Date().toISOString()
+      }).catch(() => {})
+    }
+  }, 30_000)
 
   try {
     const result = await engine.run()
@@ -314,9 +363,15 @@ ipcMain.handle('backup:start', async (_, config: TaskConfig) => {
     }
 
     activeEngines.delete(config.id)
+    // 【Fix 5】任务完成，清除进度快照和定时器
+    clearInterval(progressTimer)
+    await writeProgressSnapshot(null)
     return { success: true }
   } catch (err: unknown) {
     activeEngines.delete(config.id)
+    // 【Fix 5】任务失败，清除进度快照和定时器
+    clearInterval(progressTimer)
+    await writeProgressSnapshot(null)
 
     const errRecord: BackupRecord = {
       id: `${config.id}-${Date.now()}`,
@@ -349,6 +404,57 @@ ipcMain.handle('backup:cancel', async (_, taskId: string) => {
   activeEngines.get(taskId)?.cancel()
 })
 
+// 【Fix 6】dry-run 预览：使用 rsync --dry-run --stats 运行，返回将要传输的文件列表和总量
+ipcMain.handle('backup:dryRun', async (_, config: TaskConfig) => {
+  if (!mainWindow) return { success: false, error: 'No window' }
+
+  const settings = await loadSettings()
+  const destinations = settings.destinations
+    .filter(d => config.destinations.includes(d.id))
+    .map(d => config.destinationOverrides?.[d.id]
+      ? { ...d, path: config.destinationOverrides[d.id] }
+      : d
+    )
+
+  const RSYNC_CANDIDATES = ['/opt/homebrew/bin/rsync', '/usr/local/bin/rsync', '/usr/bin/rsync']
+  const RSYNC = RSYNC_CANDIDATES.find(p => existsSync(p)) ?? '/usr/bin/rsync'
+
+  const results: { dest: string; output: string; transferred: number; totalSize: number }[] = []
+
+  for (const dest of destinations) {
+    for (const srcPath of config.sourcePaths) {
+      const srcName = basename(srcPath)
+      const destDir = join(dest.path, srcName)
+
+      try {
+        const { stdout } = await execFileAsync(RSYNC, [
+          '-a', '--dry-run', '--stats', '--', `${srcPath}/`, `${destDir}/`
+        ])
+        // 解析 rsync --stats 输出
+        const fileMatch = stdout.match(/Number of files transferred:\s+(\d+)/)
+        const sizeMatch = stdout.match(/Total transferred file size:\s+([\d,]+)\s+bytes/)
+        const transferred = fileMatch ? parseInt(fileMatch[1].replace(/,/g, ''), 10) : 0
+        const totalSize = sizeMatch ? parseInt(sizeMatch[1].replace(/,/g, ''), 10) : 0
+
+        results.push({
+          dest: `${dest.name} (${dest.path})`,
+          output: stdout,
+          transferred,
+          totalSize
+        })
+      } catch (err) {
+        results.push({
+          dest: `${dest.name} (${dest.path})`,
+          output: `错误: ${err instanceof Error ? err.message : String(err)}`,
+          transferred: 0,
+          totalSize: 0
+        })
+      }
+    }
+  }
+
+  return { success: true, results }
+})
 // IPC: History
 ipcMain.handle('history:get', () => loadHistory())
 ipcMain.handle('history:clear', async () => {

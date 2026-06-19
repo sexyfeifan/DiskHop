@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FolderOpen, Plus, X, Play, Loader2, Lock, HardDrive, LogOut, FolderPlus, ChevronRight, ChevronLeft, Home } from 'lucide-react'
+import { FolderOpen, Plus, X, Play, Loader2, Lock, HardDrive, LogOut, FolderPlus, ChevronRight, ChevronLeft, Home, Eye } from 'lucide-react'
 import { useBackupStore } from '../store/backupStore'
 import type { TaskConfig } from '../../../../main/types'
 
@@ -202,6 +202,9 @@ export function Dashboard() {
   const [destOverrides, setDestOverrides] = useState<Record<string, string>>({})
   const [subdirModal, setSubdirModal] = useState<{ destId: string; rootPath: string; destName: string } | null>(null)
   const [mkdirStatus, setMkdirStatus] = useState<string>('')
+  // 【Fix 6】dry-run 预览状态
+  const [isDryRunning, setIsDryRunning] = useState(false)
+  const [dryRunResult, setDryRunResult] = useState<{ dest: string; output: string; transferred: number; totalSize: number }[] | null>(null)
 
   useEffect(() => {
     setVerify(settings.defaultVerify)
@@ -210,6 +213,28 @@ export function Dashboard() {
 
   useEffect(() => {
     window.api.listVolumes().then(setVolumes)
+  }, [])
+
+  // 【Fix 5】启动时检查是否有未完成的任务
+  useEffect(() => {
+    window.api.checkInterrupted().then((snapshot) => {
+      if (snapshot && typeof snapshot === 'object' && 'taskId' in snapshot) {
+        const s = snapshot as { taskId: string; config: TaskConfig; progress: any; timestamp: string }
+        const userConfirm = window.confirm(
+          `检测到上次未完成的备份任务：\n\n` +
+          `项目: ${s.config?.projectName ?? s.config?.name ?? '未知'}\n` +
+          `时间: ${s.timestamp}\n\n` +
+          `是否继续该任务？\n（选择「取消」将清除该记录）`
+        )
+        if (userConfirm && s.config) {
+          // 用户选择继续 → 重新开始备份
+          startBackupWithConfig(s.config)
+        } else {
+          // 用户选择不继续 → 清除快照
+          window.api.clearInterrupted()
+        }
+      }
+    }).catch(() => {})
   }, [])
 
   const showWebhookWarning = !settings.webhookUrl?.trim()

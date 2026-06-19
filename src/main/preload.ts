@@ -93,4 +93,16 @@ contextBridge.exposeInMainWorld('api', {
   // FX3
   fx3Scan: (sourcePaths: string[]): Promise<{ srcPath: string; untitledPath: string; suggestedName: string; videoFile: string }[]> =>
     ipcRenderer.invoke('fx3:scan', sourcePaths),
+
+  // 【Fix 5】检查是否有未完成的任务（重启后）
+  checkInterrupted: (): Promise<object | null> =>
+    ipcRenderer.invoke('backup:checkInterrupted'),
+
+  // 【Fix 5】清除未完成任务的进度快照
+  clearInterrupted: (): Promise<void> =>
+    ipcRenderer.invoke('backup:clearInterrupted'),
+
+  // 【Fix 6】dry-run 预览
+  dryRun: (config: import('./types').TaskConfig): Promise<{ success: boolean; results?: any[]; error?: string }> =>
+    ipcRenderer.invoke('backup:dryRun', config),
 })
